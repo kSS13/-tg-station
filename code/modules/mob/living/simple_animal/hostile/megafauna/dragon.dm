@@ -43,6 +43,11 @@
 	qdel(internal)
 	. = ..()
 
+/mob/living/simple_animal/hostile/megafauna/dragon/adjustHealth(amount)
+	if(swooping)
+		return 0
+	return ..()
+
 /mob/living/simple_animal/hostile/megafauna/dragon/AttackingTarget()
 	if(swooping)
 		return
@@ -51,10 +56,9 @@
 		if(isliving(target))
 			var/mob/living/L = target
 			if(L.stat == DEAD)
-				usr.visible_message(
+				src.visible_message(
 					"<span class='danger'>[src] devours [L]!</span>",
-					"<span class='userdanger'>You feast on [L], restoring \
-						your health!</span>")
+					"<span class='userdanger'>You feast on [L], restoring your health!</span>")
 				adjustBruteLoss(-L.maxHealth)
 				L.gib()
 
@@ -66,7 +70,7 @@
 	icon_state = "fireball"
 	name = "fireball"
 	desc = "Get out of the way!"
-	layer = 6
+	layer = FLY_LAYER
 	randomdir = 0
 	duration = 10
 	pixel_z = 500
@@ -74,7 +78,7 @@
 /obj/effect/overlay/temp/target
 	icon = 'icons/mob/actions.dmi'
 	icon_state = "sniper_zoom"
-	layer = MOB_LAYER - 0.1
+	layer = BELOW_MOB_LAYER
 	luminosity = 2
 	duration = 10
 
@@ -83,7 +87,7 @@
 	desc = "Don't just stand there, move!"
 	icon = 'icons/effects/96x96.dmi'
 	icon_state = "rune_large"
-	layer = MOB_LAYER - 0.1
+	layer = BELOW_MOB_LAYER
 	pixel_x = -32
 	pixel_y = -32
 	color = "#FF0000"
@@ -163,6 +167,7 @@
 		swoop_target = target
 	stop_automated_movement = TRUE
 	swooping = 1
+	density = 0
 	icon_state = "swoop"
 	visible_message("<span class='danger'>[src] swoops up high!</span>")
 	if(prob(50))
@@ -180,7 +185,7 @@
 		tturf = get_turf(swoop_target)
 	else
 		tturf = get_turf(src)
-	src.loc = tturf
+	forceMove(tturf)
 	new/obj/effect/overlay/temp/dragon_swoop(tturf)
 	animate(src, pixel_x = 0, pixel_z = 0, time = 10)
 	sleep(10)
@@ -234,13 +239,20 @@
 	hitsound = 'sound/effects/ghost2.ogg'
 	attack_verb = list("attacked", "slashed", "stabbed", "sliced", "torn", "ripped", "diced", "rended")
 	var/summon_cooldown = 0
+	var/list/mob/dead/observer/spirits
 
 /obj/item/weapon/melee/ghost_sword/New()
 	..()
+	spirits = list()
 	SSobj.processing += src
+	poi_list |= src
 
 /obj/item/weapon/melee/ghost_sword/Destroy()
+	for(var/mob/dead/observer/G in spirits)
+		G.invisibility = initial(G.invisibility)
+	spirits.Cut()
 	SSobj.processing -= src
+	poi_list -= src
 	. = ..()
 
 /obj/item/weapon/melee/ghost_sword/attack_self(mob/user)
@@ -248,33 +260,50 @@
 		user << "You just recently called out for aid. You don't want to annoy the spirits."
 		return
 	user << "You call out for aid, attempting to summon spirits to your side."
-	notify_ghosts("[user] is raising their [src], calling for your help!", source = user)
+
+	notify_ghosts("[user] is raising their [src], calling for your help!",
+		enter_link="<a href=?src=\ref[src];orbit=1>(Click to help)</a>",
+		source = user, action=NOTIFY_ORBIT)
+
 	summon_cooldown = world.time + 600
+
+/obj/item/weapon/melee/ghost_sword/Topic(href, href_list)
+	if(href_list["orbit"])
+		var/mob/dead/observer/ghost = usr
+		if(istype(ghost))
+			ghost.ManualFollow(src)
 
 /obj/item/weapon/melee/ghost_sword/process()
 	ghost_check()
 
-/obj/item/weapon/melee/ghost_sword/proc/ghost_check(mob/user)
+/obj/item/weapon/melee/ghost_sword/proc/ghost_check()
 	var/ghost_counter = 0
+	var/turf/T = get_turf(src)
+	var/list/contents = T.GetAllContents()
+	var/mob/dead/observer/current_spirits = list()
 	for(var/mob/dead/observer/G in dead_mob_list)
-		if(G.orbiting == user)
+		if(G.orbiting in contents)
 			ghost_counter++
 			G.invisibility = 0
-			spawn(30)
-				if(G.orbiting != user)
-					G.invisibility = initial(G.invisibility)
+			current_spirits |= G
+
+	for(var/mob/dead/observer/G in spirits - current_spirits)
+		G.invisibility = initial(G.invisibility)
+
+	spirits = current_spirits
+
 	return ghost_counter
 
 /obj/item/weapon/melee/ghost_sword/attack(mob/living/target, mob/living/carbon/human/user)
 	force = 0
-	var/ghost_counter = ghost_check(user)
+	var/ghost_counter = ghost_check()
 
 	force = Clamp((ghost_counter * 4), 0, 75)
 	user.visible_message("<span class='danger'>[user] strikes with the force of [ghost_counter] vengeful spirits!</span>")
 	..()
 
 /obj/item/weapon/melee/ghost_sword/hit_reaction(mob/living/carbon/human/owner, attack_text, final_block_chance, damage, attack_type)
-	var/ghost_counter = ghost_check(owner)
+	var/ghost_counter = ghost_check()
 	final_block_chance += Clamp((ghost_counter * 5), 0, 75)
 	owner.visible_message("<span class='danger'>[owner] is protected by a ring of [ghost_counter] ghosts!</span>")
 	return ..()
@@ -365,11 +394,9 @@
 
 /obj/structure/closet/crate/necropolis/dragon/New()
 	..()
-	var/loot = rand(1,3)
+	var/loot = rand(1,2)
 	switch(loot)
 		if(1)
 			new /obj/item/weapon/melee/ghost_sword(src)
 		if(2)
-			new /obj/item/weapon/dragons_blood(src)
-		if(3)
 			new /obj/item/weapon/lava_staff(src)

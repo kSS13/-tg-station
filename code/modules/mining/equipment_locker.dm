@@ -582,6 +582,7 @@
 /obj/effect/portal/wormhole/jaunt_tunnel/teleport(atom/movable/M)
 	if(istype(M, /obj/effect))
 		return
+
 	if(istype(M, /atom/movable))
 		if(do_teleport(M, target, 6))
 			// KERPLUNK
@@ -649,7 +650,7 @@
 	desc = "A resonating field that significantly damages anything inside of it when the field eventually ruptures."
 	icon = 'icons/effects/effects.dmi'
 	icon_state = "shield1"
-	layer = 4.1
+	layer = ABOVE_ALL_MOB_LAYER
 	mouse_opacity = 0
 	var/resonance_damage = 20
 
@@ -1035,7 +1036,7 @@
 				var/client/C = user.client
 				for(var/turf/closed/mineral/M in minerals)
 					var/turf/F = get_turf(M)
-					var/image/I = image('icons/turf/smoothrocks.dmi', loc = F, icon_state = M.scan_state, layer = 18)
+					var/image/I = image('icons/turf/smoothrocks.dmi', loc = F, icon_state = M.scan_state, layer = FLASH_LAYER)
 					C.images += I
 					spawn(30)
 						if(C)
@@ -1053,7 +1054,7 @@
 			C.icon_state = M.scan_state
 
 /obj/effect/overlay/temp/mining_overlay
-	layer = 20
+	layer = FLASH_LAYER
 	icon = 'icons/turf/smoothrocks.dmi'
 	anchored = 1
 	mouse_opacity = 0
