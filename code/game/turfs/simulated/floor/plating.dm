@@ -79,6 +79,9 @@
 	heat_capacity = INFINITY
 	floor_tile = /obj/item/stack/rods
 
+/turf/open/floor/engine/airless
+	initial_gas_mix = "TEMP=2.7"
+
 /turf/open/floor/engine/break_tile()
 	return //unbreakable
 
@@ -155,6 +158,13 @@
 
 /turf/open/floor/engine/cult/narsie_act()
 	return
+
+/turf/open/floor/engine/cult/ratvar_act()
+	..()
+	if(istype(src, /turf/open/floor/engine/cult)) //if we haven't changed type
+		var/previouscolor = color
+		color = "#FAE48C"
+		animate(src, color = previouscolor, time = 8)
 
 /turf/open/floor/engine/singularity_pull(S, current_size)
 	if(current_size >= STAGE_FIVE)
@@ -283,3 +293,10 @@
 	)
 /turf/open/floor/plating/lava/smooth/airless
 	initial_gas_mix = "TEMP=2.7"
+
+/turf/open/floor/plating/warnplate
+	icon_state = "warnplate"
+/turf/open/floor/plating/airless/warnplate
+	icon_state = "warnplate"
+/turf/open/floor/plating/warnplate/corner
+	icon_state = "warnplatecorner"
